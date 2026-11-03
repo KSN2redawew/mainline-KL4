@@ -11,6 +11,7 @@ static inline int of_get_named_gpio_flags(struct device_node *np, const char *pr
     struct gpio_desc *desc;
     char con_id[64];
     char *p;
+    int gpio;
 
     strncpy(con_id, propname, sizeof(con_id) - 1);
     con_id[sizeof(con_id) - 1] = '\0';
@@ -23,7 +24,10 @@ static inline int of_get_named_gpio_flags(struct device_node *np, const char *pr
     }
     if (IS_ERR(desc))
         return PTR_ERR(desc);
-    return desc_to_gpio(desc);
+
+    gpio = desc_to_gpio(desc);
+    gpiod_put(desc);
+    return gpio;
 }
 
 #endif

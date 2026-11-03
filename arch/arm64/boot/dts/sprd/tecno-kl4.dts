@@ -234,8 +234,12 @@
 		compatible = "focaltech,fts";
 		reg = <0>;
 		spi-max-frequency = <6000000>;
+		interrupt-parent = <&ap_gpio>;
+		interrupts = <14 IRQ_TYPE_EDGE_FALLING>;
 		focaltech,reset-gpio = <&ap_gpio 15 GPIO_ACTIVE_LOW>;
 		focaltech,irq-gpio = <&ap_gpio 14 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&ap_gpio 15 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&ap_gpio 14 GPIO_ACTIVE_HIGH>;
 		focaltech,max-touch-number = <5>;
 		focaltech,display-coords = <0 0 720 1600>;
 	};

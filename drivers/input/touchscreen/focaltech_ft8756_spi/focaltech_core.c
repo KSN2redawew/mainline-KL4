@@ -740,12 +740,19 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
 	int ret = 0;
 	struct fts_ts_platform_data *pdata = ts_data->pdata;
 
-	ts_data->irq = gpio_to_irq(pdata->irq_gpio);
+	if (ts_data->spi && ts_data->spi->irq > 0)
+		ts_data->irq = ts_data->spi->irq;
+	else
+		ts_data->irq = gpio_to_irq(pdata->irq_gpio);
+
 	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
-	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
+	pr_info("[FTS_TS] irq: %d (from spi: %d, gpio: %d), flags: 0x%x\n",
+		ts_data->irq, ts_data->spi ? ts_data->spi->irq : -1, pdata->irq_gpio, pdata->irq_gpio_flags);
 	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
 				   pdata->irq_gpio_flags,
 				   FTS_DRIVER_NAME, ts_data);
+	if (ret)
+		pr_err("[FTS_TS] request_threaded_irq failed: %d\n", ret);
 
 	return ret;
 }
@@ -1114,14 +1121,14 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 	/* request irq gpio */
 	if (gpio_is_valid(data->pdata->irq_gpio)) {
 		ret = gpio_request(data->pdata->irq_gpio, "fts_irq_gpio");
-		if (ret) {
-			FTS_ERROR("[GPIO]irq gpio request failed");
+		if (ret && ret != -EBUSY) {
+			FTS_ERROR("[GPIO]irq gpio request failed: %d", ret);
 			goto err_irq_gpio_req;
 		}
 
 		ret = gpio_direction_input(data->pdata->irq_gpio);
 		if (ret) {
-			FTS_ERROR("[GPIO]set_direction for irq gpio failed");
+			FTS_ERROR("[GPIO]set_direction for irq gpio failed: %d", ret);
 			goto err_irq_gpio_dir;
 		}
 	}
@@ -1129,14 +1136,14 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 	/* request reset gpio */
 	if (gpio_is_valid(data->pdata->reset_gpio)) {
 		ret = gpio_request(data->pdata->reset_gpio, "fts_reset_gpio");
-		if (ret) {
-			FTS_ERROR("[GPIO]reset gpio request failed");
+		if (ret && ret != -EBUSY) {
+			FTS_ERROR("[GPIO]reset gpio request failed: %d", ret);
 			goto err_irq_gpio_dir;
 		}
 
 		ret = gpio_direction_output(data->pdata->reset_gpio, 1);
 		if (ret) {
-			FTS_ERROR("[GPIO]set_direction for reset gpio failed");
+			FTS_ERROR("[GPIO]set_direction for reset gpio failed: %d", ret);
 			goto err_reset_gpio_dir;
 		}
 	}
@@ -1430,9 +1437,7 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	}
 #endif
 
-#if (!FTS_CHIP_IDC)
 	fts_reset_proc(200);
-#endif
 
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
@@ -1717,27 +1722,28 @@ static int fts_ts_probe(struct spi_device *spi)
 	ts_data->bus_type = BUS_TYPE_SPI_V2;
 	spi_set_drvdata(spi, ts_data);
 
-	ret = fts_ts_probe_entry(ts_data);
+	spi->mode = SPI_MODE_0;
+	spi->bits_per_word = 8;
+	if (spi->max_speed_hz == 0)
+		spi->max_speed_hz = 6000000;
+	pr_info("[FTS_TS] Initializing SPI bus: mode=%d bits=%d speed=%d\n", spi->mode, spi->bits_per_word, spi->max_speed_hz);
+	ret = spi_setup(spi);
 	if (ret) {
-		FTS_ERROR("Touch Screen(SPI BUS) driver probe fail");
+		FTS_ERROR("spi setup fail: %d", ret);
 		kfree_safe(ts_data);
 		return ret;
 	}
 
-	spi->mode = SPI_MODE_0;
-	spi->bits_per_word = 8;
-	spi->max_speed_hz = ts_data->pdata->spi_max_frequency;
-	FTS_INFO("start to spi_setup, spi->mode=%d,spi->bits_per_word=%d,spi->max_speed_hz=%d\n"
-			,spi->mode,spi->bits_per_word,spi->max_speed_hz);
-	ret = spi_setup(spi);
+	ret = fts_ts_probe_entry(ts_data);
 	if (ret) {
-		FTS_ERROR("spi setup fail");
+		FTS_ERROR("Touch Screen(SPI BUS) driver probe fail: %d", ret);
+		kfree_safe(ts_data);
 		return ret;
 	}
 
 	fts_irq_enable();
 	check_current_mode();
-	FTS_INFO("Touch Screen(SPI BUS) driver prboe successfully");
+	pr_info("[FTS_TS] Touch Screen(SPI BUS) driver probed successfully\n");
 
 	return 0;
 }
