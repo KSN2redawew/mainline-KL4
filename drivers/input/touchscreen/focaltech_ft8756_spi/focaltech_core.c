@@ -286,6 +286,7 @@ static int fts_get_ic_information(struct fts_ts_data *ts_data)
 	int ret = 0;
 	int cnt = 0;
 	u8 chip_id[2] = { 0 };
+	struct ft_chip_t ctype[] = FTS_CHIP_TYPE_MAPPING;
 
 	ts_data->ic_info.is_incell = FTS_CHIP_IDC;
 	ts_data->ic_info.hid_supported = FTS_HID_SUPPORTTED;
@@ -295,26 +296,28 @@ static int fts_get_ic_information(struct fts_ts_data *ts_data)
 		mdelay(FTS_CMD_START_DELAY);
 
 		ret = fts_read_bootid(ts_data, &chip_id[0]);
-		if (ret < 0) {
-			FTS_DEBUG("read boot id fail,retry:%d", cnt);
-			continue;
+		if (ret >= 0) {
+			ret = fts_get_chip_types(ts_data, chip_id[0], chip_id[1], INVALID);
+			if (ret == 0)
+				break;
 		}
 
-		ret = fts_get_chip_types(ts_data, chip_id[0], chip_id[1], INVALID);
-		if (ret < 0) {
-			FTS_DEBUG("can't get ic information,retry:%d", cnt);
-			continue;
+		/* fallback: try reading runtime registers 0xA3, 0x9F */
+		ret = fts_read_reg(FTS_REG_CHIP_ID, &chip_id[0]);
+		if (ret == 0 && chip_id[0] != 0) {
+			fts_read_reg(FTS_REG_CHIP_ID2, &chip_id[1]);
+			ret = fts_get_chip_types(ts_data, chip_id[0], chip_id[1], VALID);
+			if (ret == 0)
+				break;
 		}
-
-		break;
 	}
 
 	if (cnt >= 3) {
-		FTS_ERROR("get ic information fail");
-		return -EIO;
+		pr_warn("[FTS_TS] Could not auto-detect chip ID, falling back to FT8756 default\n");
+		ts_data->ic_info.ids = ctype[0];
 	}
 
-	FTS_INFO("get ic information, chip id = 0x%02x%02x",
+	pr_info("[FTS_TS] get ic information, chip id = 0x%02x%02x\n",
 		 ts_data->ic_info.ids.chip_idh, ts_data->ic_info.ids.chip_idl);
 
 	return 0;
