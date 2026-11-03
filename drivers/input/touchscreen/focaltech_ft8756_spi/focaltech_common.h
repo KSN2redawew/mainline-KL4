@@ -144,13 +144,13 @@ extern bool fts_debug_flag;
  ********************************************************/
 #if FTS_DEBUG_EN
 #define FTS_DEBUG(fmt, ...) \
-	printk(KERN_INFO "[FTS_TS/D]%s:"fmt"\n", __func__, ##__VA_ARGS__)
+	printk(KERN_DEBUG "[FTS_TS/D]%s:"fmt"\n", __func__, ##__VA_ARGS__)
 
 #define FTS_FUNC_ENTER() \
-	printk(KERN_INFO "[FTS_TS]%s: Enter\n", __func__)
+	printk(KERN_DEBUG "[FTS_TS]%s: Enter\n", __func__)
 
 #define FTS_FUNC_EXIT() \
-	printk(KERN_INFO "[FTS_TS]%s: Exit(%d)\n", __func__, __LINE__)
+	printk(KERN_DEBUG "[FTS_TS]%s: Exit(%d)\n", __func__, __LINE__)
 
 #else /* #if FTS_DEBUG_EN */
 #define FTS_DEBUG(fmt, args...)

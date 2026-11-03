@@ -407,6 +407,9 @@ static int sprd_spi_txrx_bufs(struct spi_device *sdev, struct spi_transfer *t)
 	while (trans_len) {
 		len = trans_len > SPRD_SPI_FIFO_SIZE ? SPRD_SPI_FIFO_SIZE :
 			trans_len;
+		if (ss->trans_mode & SPRD_SPI_RX_MODE)
+			sprd_spi_set_rx_length(ss, len);
+
 		if (ss->trans_mode & SPRD_SPI_TX_MODE) {
 			sprd_spi_set_tx_length(ss, len);
 			write_size += ss->write_bufs(ss, len);
@@ -420,8 +423,6 @@ static int sprd_spi_txrx_bufs(struct spi_device *sdev, struct spi_transfer *t)
 
 			ret = sprd_spi_wait_for_tx_end(ss, t);
 		} else {
-			sprd_spi_set_rx_length(ss, len);
-
 			/*
 			 * For our 3 wires mode or dual TX line mode, we need
 			 * to request the controller to read.
@@ -584,6 +585,9 @@ static int sprd_spi_dma_txrx_bufs(struct spi_device *sdev,
 
 	reinit_completion(&ss->xfer_completion);
 	sprd_spi_irq_enable(ss);
+	if (ss->trans_mode & SPRD_SPI_RX_MODE)
+		sprd_spi_set_rx_length(ss, trans_len);
+
 	if (ss->trans_mode & SPRD_SPI_TX_MODE) {
 		write_size = sprd_spi_dma_tx_config(ss, t);
 		sprd_spi_set_tx_length(ss, trans_len);
@@ -595,8 +599,6 @@ static int sprd_spi_dma_txrx_bufs(struct spi_device *sdev,
 		if (ss->hw_mode & SPI_3WIRE || ss->hw_mode & SPI_TX_DUAL)
 			sprd_spi_tx_req(ss);
 	} else {
-		sprd_spi_set_rx_length(ss, trans_len);
-
 		/*
 		 * For our 3 wires mode or dual TX line mode, we need
 		 * to request the controller to read.
