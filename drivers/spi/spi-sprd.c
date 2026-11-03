@@ -422,6 +422,8 @@ static int sprd_spi_txrx_bufs(struct spi_device *sdev, struct spi_transfer *t)
 				sprd_spi_tx_req(ss);
 
 			ret = sprd_spi_wait_for_tx_end(ss, t);
+			if (!ret && (ss->trans_mode & SPRD_SPI_RX_MODE))
+				ret = sprd_spi_wait_for_rx_end(ss, t);
 		} else {
 			/*
 			 * For our 3 wires mode or dual TX line mode, we need

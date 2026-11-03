@@ -741,9 +741,11 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 static void fts_poll_work(struct work_struct *work)
 {
 	struct fts_ts_data *ts_data = container_of(to_delayed_work(work), struct fts_ts_data, poll_work);
-	fts_irq_read_report();
+	if (gpio_is_valid(ts_data->pdata->irq_gpio) && gpio_get_value(ts_data->pdata->irq_gpio) == 0) {
+		fts_irq_read_report();
+	}
 	if (ts_data->polling_enabled)
-		queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(16));
+		queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(30));
 }
 
 static int fts_irq_registration(struct fts_ts_data *ts_data)
@@ -1152,8 +1154,34 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 		writel_relaxed(val, pctrl + 0x214);
 		pr_info("[FTS_TS] UMS9230 Pinctrl 0x214 (GPIO15 RST) configured: 0x%08x\n", val);
 
+		/*
+		 * Physical SPI2 pins pinmux:
+		 * 0x218: UMS9230_SPI2_CS0N -> func 0 (SPI2_CS0N), pull-up
+		 * 0x21c: UMS9230_SPI2_DO   -> func 0 (SPI2_DO)
+		 * 0x220: UMS9230_SPI2_DI   -> func 0 (SPI2_DI), pull-up
+		 * 0x224: UMS9230_SPI2_CLK  -> func 0 (SPI2_CLK)
+		 */
+		val = readl_relaxed(pctrl + 0x218);
+		val = (val & ~0x30) | BIT(7);
+		writel_relaxed(val, pctrl + 0x218);
+
+		val = readl_relaxed(pctrl + 0x21c);
+		val &= ~0x30;
+		writel_relaxed(val, pctrl + 0x21c);
+
+		val = readl_relaxed(pctrl + 0x220);
+		val = (val & ~0x30) | BIT(7);
+		writel_relaxed(val, pctrl + 0x220);
+
+		val = readl_relaxed(pctrl + 0x224);
+		val &= ~0x30;
+		writel_relaxed(val, pctrl + 0x224);
+
+		/* SPI MATRIX reg 0x14: clear bit 2 so SPI2 controller routes to interface 2 */
 		val = readl_relaxed(pctrl + 0x14);
-		pr_info("[FTS_TS] UMS9230 SPI MATRIX reg 0x14: 0x%08x\n", val);
+		val &= ~BIT(2);
+		writel_relaxed(val, pctrl + 0x14);
+		pr_info("[FTS_TS] UMS9230 SPI MATRIX reg 0x14 set: 0x%08x\n", val);
 		iounmap(pctrl);
 	} else {
 		pr_err("[FTS_TS] Failed to ioremap UMS9230 pinctrl at 0x64710000\n");
@@ -1184,6 +1212,10 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 			FTS_ERROR("[GPIO]set_direction for reset gpio failed: %d", ret);
 		}
 	}
+
+	pr_info("[FTS_TS] GPIO 14 (INT)=%d, GPIO 15 (RST)=%d\n",
+		gpio_is_valid(data->pdata->irq_gpio) ? gpio_get_value(data->pdata->irq_gpio) : -1,
+		gpio_is_valid(data->pdata->reset_gpio) ? gpio_get_value(data->pdata->reset_gpio) : -1);
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -1509,15 +1541,16 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 #endif
 
 	INIT_DELAYED_WORK(&ts_data->poll_work, fts_poll_work);
-	ts_data->polling_enabled = true;
 
 	ret = fts_irq_registration(ts_data);
 	if (ret) {
-		pr_warn("[FTS_TS] IRQ registration failed (%d), falling back to 60Hz polling\n", ret);
+		pr_warn("[FTS_TS] IRQ registration failed (%d), falling back to polling\n", ret);
+		ts_data->polling_enabled = true;
+		queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(100));
 	} else {
-		pr_info("[FTS_TS] IRQ registered successfully and 60Hz fallback poll active\n");
+		pr_info("[FTS_TS] IRQ registered successfully on irq %d\n", ts_data->irq);
+		ts_data->polling_enabled = false;
 	}
-	queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(100));
 
 	ret = fts_fwupg_init(ts_data);
 	if (ret)

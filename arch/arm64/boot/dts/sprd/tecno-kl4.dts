@@ -227,10 +227,6 @@
 
 &spi2 {
 	status = "okay";
-};
-
-&spi3 {
-	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -247,5 +243,9 @@
 		focaltech,max-touch-number = <5>;
 		focaltech,display-coords = <0 0 720 1600>;
 	};
+};
+
+&spi3 {
+	status = "okay";
 };
 
