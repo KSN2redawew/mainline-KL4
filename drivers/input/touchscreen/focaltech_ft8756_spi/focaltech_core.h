@@ -161,6 +161,8 @@ struct fts_ts_data {
 	struct delayed_work prc_work;
 	struct platform_device *pdev;
 	struct work_struct resume_work;
+	struct delayed_work poll_work;
+	bool polling_enabled;
 	struct ftxxxx_proc proc;
 	spinlock_t irq_lock;
 	struct mutex report_mutex;

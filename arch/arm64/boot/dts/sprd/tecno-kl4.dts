@@ -225,6 +225,10 @@
 	status = "okay";
 };
 
+&spi2 {
+	status = "okay";
+};
+
 &spi3 {
 	status = "okay";
 	#address-cells = <1>;

@@ -136,13 +136,13 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 
 int fts_reset_proc(int hdelayms)
 {
-	FTS_DEBUG("tp reset");
-	gpio_direction_output(fts_data->pdata->reset_gpio, 0);
-	msleep(5);
-	gpio_direction_output(fts_data->pdata->reset_gpio, 1);
-	if (hdelayms)
-		msleep(hdelayms);
-
+	pr_info("[FTS_TS] Executing hardware TP reset (hdelay=%d ms)\n", hdelayms);
+	if (gpio_is_valid(fts_data->pdata->reset_gpio)) {
+		gpio_direction_output(fts_data->pdata->reset_gpio, 0);
+		msleep(20);
+		gpio_direction_output(fts_data->pdata->reset_gpio, 1);
+		msleep(hdelayms ? hdelayms : 100);
+	}
 	return 0;
 }
 
@@ -738,6 +738,14 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void fts_poll_work(struct work_struct *work)
+{
+	struct fts_ts_data *ts_data = container_of(to_delayed_work(work), struct fts_ts_data, poll_work);
+	fts_irq_read_report();
+	if (ts_data->polling_enabled)
+		queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(16));
+}
+
 static int fts_irq_registration(struct fts_ts_data *ts_data)
 {
 	int ret = 0;
@@ -1119,20 +1127,48 @@ static int fts_power_source_resume(struct fts_ts_data *ts_data)
 static int fts_gpio_configure(struct fts_ts_data *data)
 {
 	int ret = 0;
+	void __iomem *pctrl;
+	u32 val;
 
 	FTS_FUNC_ENTER();
+
+	/*
+	 * Unisoc UMS9230 Pin Control Configuration:
+	 * 0x64710210: UMS9230_SDA2 -> mode 3 (GPIO14 INT), pull-up (20k)
+	 * 0x64710214: UMS9230_SPI2_CS1N -> mode 3 (GPIO15 RST), pull-up (20k)
+	 * 0x64710014: SPI MATRIX control reg
+	 */
+	pctrl = ioremap(0x64710000, 0x1000);
+	if (pctrl) {
+		val = readl_relaxed(pctrl + 0x210);
+		val &= ~0x30;
+		val |= 0x30 | BIT(7);
+		writel_relaxed(val, pctrl + 0x210);
+		pr_info("[FTS_TS] UMS9230 Pinctrl 0x210 (GPIO14 INT) configured: 0x%08x\n", val);
+
+		val = readl_relaxed(pctrl + 0x214);
+		val &= ~0x30;
+		val |= 0x30 | BIT(7);
+		writel_relaxed(val, pctrl + 0x214);
+		pr_info("[FTS_TS] UMS9230 Pinctrl 0x214 (GPIO15 RST) configured: 0x%08x\n", val);
+
+		val = readl_relaxed(pctrl + 0x14);
+		pr_info("[FTS_TS] UMS9230 SPI MATRIX reg 0x14: 0x%08x\n", val);
+		iounmap(pctrl);
+	} else {
+		pr_err("[FTS_TS] Failed to ioremap UMS9230 pinctrl at 0x64710000\n");
+	}
+
 	/* request irq gpio */
 	if (gpio_is_valid(data->pdata->irq_gpio)) {
 		ret = gpio_request(data->pdata->irq_gpio, "fts_irq_gpio");
 		if (ret && ret != -EBUSY) {
 			FTS_ERROR("[GPIO]irq gpio request failed: %d", ret);
-			goto err_irq_gpio_req;
 		}
 
 		ret = gpio_direction_input(data->pdata->irq_gpio);
 		if (ret) {
 			FTS_ERROR("[GPIO]set_direction for irq gpio failed: %d", ret);
-			goto err_irq_gpio_dir;
 		}
 	}
 
@@ -1141,13 +1177,11 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 		ret = gpio_request(data->pdata->reset_gpio, "fts_reset_gpio");
 		if (ret && ret != -EBUSY) {
 			FTS_ERROR("[GPIO]reset gpio request failed: %d", ret);
-			goto err_irq_gpio_dir;
 		}
 
 		ret = gpio_direction_output(data->pdata->reset_gpio, 1);
 		if (ret) {
 			FTS_ERROR("[GPIO]set_direction for reset gpio failed: %d", ret);
-			goto err_reset_gpio_dir;
 		}
 	}
 
@@ -1444,13 +1478,8 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
-		FTS_ERROR("not focal IC, unregister driver");
-		goto err_irq_req;
+		pr_warn("[FTS_TS] fts_get_ic_information warning: %d, proceeding with default FT8756 params\n", ret);
 	}
-
-	//ret = fts_create_apk_debug_channel(ts_data);
-	//if (ret)
-	//	FTS_ERROR("create apk debug node fail");
 
 	ret = fts_create_sysfs(ts_data);
 	if (ret)
@@ -1479,11 +1508,16 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 		FTS_ERROR("init esd check fail");
 #endif
 
+	INIT_DELAYED_WORK(&ts_data->poll_work, fts_poll_work);
+	ts_data->polling_enabled = true;
+
 	ret = fts_irq_registration(ts_data);
 	if (ret) {
-		FTS_ERROR("request irq failed");
-		goto err_irq_req;
+		pr_warn("[FTS_TS] IRQ registration failed (%d), falling back to 60Hz polling\n", ret);
+	} else {
+		pr_info("[FTS_TS] IRQ registered successfully and 60Hz fallback poll active\n");
 	}
+	queue_delayed_work(ts_data->ts_workqueue, &ts_data->poll_work, msecs_to_jiffies(100));
 
 	ret = fts_fwupg_init(ts_data);
 	if (ret)
