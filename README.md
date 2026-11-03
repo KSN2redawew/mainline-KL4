@@ -9,7 +9,7 @@ This is a very early-stage project — I’ve only just started working on it.
 ### Working
 - [x] Boot
 - [x] Vibration
+- [X] Touch (Only FocalTech Driver)
 
 ### Not working
 - [ ] Wi-Fi
-- [ ] Touch
