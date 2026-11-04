@@ -1416,8 +1416,11 @@ int syna_tcm_v1_detect(struct tcm_dev *tcm_dev, bool bypass, bool do_reset)
 
 	header = (struct tcm_v1_message_header *)data;
 
-	if (header->marker != TCM_V1_MESSAGE_MARKER)
-		return -ERR_NODEV;
+	if (header->marker != TCM_V1_MESSAGE_MARKER) {
+		LOGI("Header marker 0x%02X != 0xA5, entering ROMBOOT mode\n", header->marker);
+		tcm_dev->dev_mode = MODE_ROMBOOTLOADER;
+		goto set_ops;
+	}
 
 	/* determine to have crc support */
 	syna_tcm_v1_update_crc(tcm_dev);

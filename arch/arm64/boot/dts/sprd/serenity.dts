@@ -1,0 +1,168 @@
+// Xiaomi Redmi A5 / UMS9230 (Serenity)
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/usb/pd.h>
+#include "ums9230.dtsi"
+#include "sc2730.dtsi"
+
+/ {
+        model = "Redmi A5";
+        compatible = "xiaomi,redmi-a5", "sprd,ums9230";
+
+        aliases {
+                serial0 = &uart0;
+                serial1 = &uart1;
+                i2c0 = &i2c0;
+                i2c1 = &i2c1;
+                i2c2 = &i2c2;
+                i2c3 = &i2c3;
+                i2c4 = &i2c4;
+                i2c5 = &i2c5;
+                i2c6 = &i2c6;
+                i2c7 = &aon_i2c0;
+        };
+
+        chosen {
+                #address-cells = <2>;
+                #size-cells = <2>;
+                ranges;
+
+                bootargs = "console=tty0 loglevel=8 ignore_loglevel clk_ignore_unused pd_ignore_unused regulator_ignore_unused";
+
+                linux,initrd-start = <0 0xc7000000>;
+		linux,initrd-end = <0 0xc7c38fcd>;
+
+                framebuffer {
+                        compatible = "simple-framebuffer";
+                        reg = <0x0 0x9cf2a000 0x0 0x800000>;
+                        width = <720>;
+                        height = <1640>;
+                        stride = <1440>;
+                        format = "a8r8g8b8";
+                        status = "okay";
+                };
+        };
+
+        memory@80000000 {
+                device_type = "memory";
+                reg = <0x0 0x80000000 0x1 0x0>;
+        };
+
+        reserved-memory {
+                logobuffer@9e000000 {
+                        reg = <0x0 0x9caa8000 0x0 0x13d8000>;
+                        no-map;
+                };
+
+                linux,cma {
+                        compatible = "shared-dma-pool";
+                        size = <0x0 0x8000000>;
+                        reusable;
+                        linux,cma-default;
+                };
+
+                ramoops@fff80000 {
+                        compatible = "ramoops";
+                        reg = <0x0 0xfff80000 0x0 0x40000>;
+                        record-size = <0x8000>;
+                        console-size = <0x8000>;
+                        pmsg-size = <0x8000>;
+                };
+        };
+};
+
+&iommu_disp {
+        status = "disabled";
+};
+
+&disp {
+        status = "disabled";
+};
+
+&dpu {
+        status = "disabled";
+};
+
+&dsi {
+        status = "disabled";
+};
+
+&pwm {
+        status = "disabled";
+};
+
+&pmic_typec_pd {
+        status = "okay";
+};
+
+&vddusb33 {
+        regulator-name = "vddusb33";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        regulator-always-on;
+};
+
+&hsphy {
+        status = "okay";
+        phy-supply = <&vddusb33>;
+};
+
+&pmic_typec_pd {
+        status = "okay";
+
+        connector {
+                compatible = "usb-c-connector";
+                label = "USB-C";
+                data-role = "device";
+                power-role = "sink";
+                sink-pdos = <PDO_FIXED(5000, 500, PDO_FIXED_USB_COMM)>;
+
+                port {
+                        tcpc_hs_ep: endpoint {
+                                remote-endpoint = <&usb_hs_ep>;
+                        };
+                };
+        };
+};
+
+&usb {
+        status = "okay";
+        dr_mode = "peripheral";
+        usb-role-switch;
+        role-switch-default-mode = "peripheral";
+
+        port {
+                usb_hs_ep: endpoint {
+                        remote-endpoint = <&tcpc_hs_ep>;
+                };
+        };
+};
+
+&ufs {
+        status = "okay";
+        vcc-supply = <&vddemmccore>;
+};
+
+&sdio0 {
+        status = "okay";
+        vmmc-supply = <&vddsdcore>;
+        vqmmc-supply = <&vddsdio>;
+        cd-gpios = <&eic_async 35 GPIO_ACTIVE_HIGH>;
+        bus-width = <4>;
+        no-sdio;
+        no-mmc;
+
+        sprd,phy-delay-sd-uhs-sdr104 = <0x7f 0x73 0x72 0x72>;
+        sprd,phy-delay-sd-uhs-sdr50 = <0x6e 0x7f 0x01 0x01>;
+        sprd,phy-delay-sd-highspeed = <0x7f 0x1a 0x9a 0x9a>;
+        sprd,phy-delay-legacy = <0x7f 0x1a 0x9a 0x9a>;
+
+        sd-uhs-sdr104;
+        sd-uhs-sdr50;
+};
+
+&gpu {
+        status = "disabled";
+};

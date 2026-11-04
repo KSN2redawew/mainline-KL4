@@ -41,6 +41,7 @@
 #include "synaptics_touchcom_core_dev.h"
 #include "synaptics_touchcom_func_base.h"
 #include "synaptics_touchcom_func_touch.h"
+#include "tcm/synaptics_touchcom_image_parsing.h"
 #ifdef REFLASH_DISCRETE_TOUCH
 #include "synaptics_touchcom_func_reflash.h"
 #endif
@@ -1669,6 +1670,95 @@ exit:
  * return
  *    0 or positive value in case of success, a negative value otherwise.
  */
+static int syna_dev_zeroflash_download(struct syna_tcm *tcm)
+{
+	int retval;
+	const struct firmware *fw_entry = NULL;
+	struct image_info image;
+	struct tcm_dev *tcm_dev = tcm->tcm_dev;
+	const unsigned char *app_data = NULL;
+	unsigned int app_size = 0;
+	unsigned char *buf = NULL;
+	unsigned char resp_code = 0;
+
+	LOGI("Starting ZeroFlash ROMBOOT download...\n");
+
+	retval = request_firmware(&fw_entry, "hdl_firmware_00.img", tcm->pdev->dev.parent);
+	if (retval < 0) {
+		retval = request_firmware(&fw_entry, "hdl_firmware_01.img", tcm->pdev->dev.parent);
+	}
+	if (retval < 0) {
+		LOGE("Failed to request hdl_firmware_00.img / 01.img: %d\n", retval);
+		return retval;
+	}
+
+	retval = syna_tcm_parse_fw_image(fw_entry->data, fw_entry->size, &image);
+	if (retval < 0) {
+		LOGE("Failed to parse firmware image: %d\n", retval);
+		release_firmware(fw_entry);
+		return retval;
+	}
+
+	if (image.data[AREA_ROMBOOT_APP_CODE].described) {
+		app_data = image.data[AREA_ROMBOOT_APP_CODE].data;
+		app_size = image.data[AREA_ROMBOOT_APP_CODE].size;
+		LOGI("Found ROMBOOT_APP_CODE partition: size %u\n", app_size);
+	} else if (image.data[AREA_APP_CODE].described) {
+		app_data = image.data[AREA_APP_CODE].data;
+		app_size = image.data[AREA_APP_CODE].size;
+		LOGI("Found APP_CODE partition: size %u\n", app_size);
+	} else {
+		LOGE("No app code found in firmware image!\n");
+		release_firmware(fw_entry);
+		return -EINVAL;
+	}
+
+	buf = kzalloc(app_size + 14, GFP_KERNEL);
+	if (!buf) {
+		release_firmware(fw_entry);
+		return -ENOMEM;
+	}
+
+	buf[0] = 0x01;
+	memcpy(buf + 14, app_data, app_size);
+
+	LOGI("Sending CMD_ROMBOOT_DOWNLOAD (0x45), size=%u...\n", app_size + 14);
+	if (tcm_dev->write_message) {
+		retval = tcm_dev->write_message(tcm_dev, CMD_ROMBOOT_DOWNLOAD,
+						buf, app_size + 14, &resp_code, 50);
+		if (retval < 0) {
+			LOGE("CMD_ROMBOOT_DOWNLOAD failed: %d\n", retval);
+			kfree(buf);
+			release_firmware(fw_entry);
+			return retval;
+		}
+
+		LOGI("Sending CMD_ROMBOOT_RUN_APP_FIRMWARE (0x42)...\n");
+		retval = tcm_dev->write_message(tcm_dev, CMD_ROMBOOT_RUN_APP_FIRMWARE,
+						NULL, 0, &resp_code, 100);
+		if (retval < 0) {
+			LOGE("CMD_ROMBOOT_RUN_APP_FIRMWARE failed: %d\n", retval);
+		}
+	} else {
+		LOGE("write_message not initialized!\n");
+		kfree(buf);
+		release_firmware(fw_entry);
+		return -EIO;
+	}
+
+	kfree(buf);
+	release_firmware(fw_entry);
+
+	/* Wait for firmware to boot in SRAM */
+	msleep(100);
+
+	/* Re-detect device protocol in application firmware mode */
+	retval = syna_tcm_detect_device(tcm_dev, PROTOCOL_DETECT_VERSION_1, false);
+	LOGI("Post-download detect returned %d, dev_mode=0x%02X\n", retval, tcm_dev->dev_mode);
+
+	return retval;
+}
+
 static int syna_dev_connect(struct syna_tcm *tcm)
 {
 	int retval;
@@ -1715,6 +1805,13 @@ static int syna_dev_connect(struct syna_tcm *tcm)
 	if (retval < 0) {
 		LOGE("Fail to detect the device\n");
 		goto err_detect_dev;
+	}
+
+	if (tcm_dev->dev_mode == MODE_ROMBOOTLOADER || tcm_dev->dev_mode == MODE_BOOTLOADER) {
+		retval = syna_dev_zeroflash_download(tcm);
+		if (retval < 0) {
+			LOGE("ZeroFlash download failed: %d\n", retval);
+		}
 	}
 
 	if (tcm_dev->dev_mode == MODE_APPLICATION_FIRMWARE) {
