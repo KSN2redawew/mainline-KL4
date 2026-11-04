@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      LINUX_VERSION: "7.0.11"
+      KDIR: "${{ github.workspace }}/linux-7.0.11"
+    steps:
+      - uses: actions/checkout@v4
+
+      # aarch64 cross toolchain + kernel build deps. The driver targets the
+      # ROCKNIX SM8650 kernel (arm64), so we cross-compile — a native x86_64
+      # build is not meaningful here.
+      - name: Install toolchain and kernel build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu bc flex bison libssl-dev libelf-dev
+
+      # Fetch the exact kernel ROCKNIX uses for SM8650 (7.0.11), apply its
+      # SM8650 config, and prepare the tree for out-of-tree module builds.
+      - name: Fetch and prepare kernel (7.0.11, arm64, ROCKNIX SM8650 config)
+        run: |
+          wget -q "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-${LINUX_VERSION}.tar.xz"
+          tar xf "linux-${LINUX_VERSION}.tar.xz"
+          curl -fsSL -o "${KDIR}/.config" \
+            "https://raw.githubusercontent.com/ROCKNIX/distribution/next/projects/ROCKNIX/devices/SM8650/linux/linux.aarch64.conf"
+          make -C "${KDIR}" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+          make -C "${KDIR}" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j"$(nproc)"
+
+      # Build the module. KBUILD_MODPOST_WARN=1 is required: we only run
+      # modules_prepare (no vmlinux), so modpost cannot resolve in-kernel
+      # symbols and would otherwise error. The symbols are all standard kernel
+      # exports present on the target, so warnings here are expected/benign.
+      - name: Build module
+        run: |
+          make -C "${KDIR}" M="${{ github.workspace }}" \
+            ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            KBUILD_MODPOST_WARN=1 modules
+          echo "=== built module ==="
+          modinfo chipone_tddi.ko | grep -E 'filename|vermagic|description'
+
+      - name: Upload module artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chipone_tddi-${{ env.LINUX_VERSION }}-arm64
+          path: chipone_tddi.ko

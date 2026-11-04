@@ -231,17 +231,43 @@
 	#size-cells = <0>;
 
 	touchscreen@0 {
-		compatible = "focaltech,fts";
+		compatible = "novatek,NVT-ts-spi", "chipone-tddi", "omnivision,tcm-spi", "focaltech,fts";
 		reg = <0>;
-		spi-max-frequency = <6000000>;
+		spi-max-frequency = <9600000>;
 		interrupt-parent = <&ap_gpio>;
 		interrupts = <14 IRQ_TYPE_EDGE_FALLING>;
-		focaltech,reset-gpio = <&ap_gpio 15 GPIO_ACTIVE_LOW>;
-		focaltech,irq-gpio = <&ap_gpio 14 GPIO_ACTIVE_HIGH>;
+
+		/* Common GPIOs */
 		reset-gpios = <&ap_gpio 15 GPIO_ACTIVE_LOW>;
 		irq-gpios = <&ap_gpio 14 GPIO_ACTIVE_HIGH>;
-		focaltech,max-touch-number = <5>;
+
+		/* Focaltech */
+		focaltech,reset-gpio = <&ap_gpio 15 GPIO_ACTIVE_LOW>;
+		focaltech,irq-gpio = <&ap_gpio 14 GPIO_ACTIVE_HIGH>;
+		focaltech,max-touch-number = <10>;
 		focaltech,display-coords = <0 0 720 1600>;
+
+		/* Novatek */
+		novatek,reset-gpio = <&ap_gpio 15 0>;
+		novatek,irq-gpio = <&ap_gpio 14 0>;
+		novatek,swrst-n8;
+
+		/* Chipone */
+		chipone,rst-gpio = <&ap_gpio 15 0>;
+		chipone,irq-gpio = <&ap_gpio 14 0>;
+		chipone,x-res = <720>;
+		chipone,y-res = <1600>;
+
+		/* Omnivision TCM */
+		omnivision,reset-gpio = <&ap_gpio 15 GPIO_ACTIVE_HIGH>;
+		omnivision,irq-gpio = <&ap_gpio 14 0x2008>;
+		omnivision,reset-active-ms = <20>;
+		omnivision,reset-delay-ms = <200>;
+		omnivision,power-delay-ms = <200>;
+		omnivision,spi-mode = <0>;
+
+		touchscreen-size-x = <720>;
+		touchscreen-size-y = <1600>;
 	};
 };
 

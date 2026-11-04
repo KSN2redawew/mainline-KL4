@@ -1510,7 +1510,9 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 
 	ret = fts_get_ic_information(ts_data);
 	if (ret) {
-		pr_warn("[FTS_TS] fts_get_ic_information warning: %d, proceeding with default FT8756 params\n", ret);
+		pr_info("[FTS_TS] fts_get_ic_information failed (%d), not a FocalTech chip, yielding to other drivers\n", ret);
+		ret = -ENODEV;
+		goto err_irq_req;
 	}
 
 	ret = fts_create_sysfs(ts_data);
