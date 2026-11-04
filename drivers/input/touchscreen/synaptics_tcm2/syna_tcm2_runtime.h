@@ -77,8 +77,8 @@
  */
 
 /* Enable TouchComm protocol version 1 */
-#if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_TOUCHCOMM_VERSION_1)
-#define TOUCHCOMM_VERSION_1
+#ifndef TOUCHCOMM_VERSION_1
+#define TOUCHCOMM_VERSION_1 1
 #endif
 /* Enable TouchComm protocol version 2 */
 #if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_TOUCHCOMM_VERSION_2)
@@ -86,8 +86,8 @@
 #endif
 
 /* Enable support for TDDI device */
-#if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_TDDI)
-#define TOUCHCOMM_TDDI
+#ifndef TOUCHCOMM_TDDI
+#define TOUCHCOMM_TDDI 1
 #endif
 
 

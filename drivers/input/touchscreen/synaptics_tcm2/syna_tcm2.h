@@ -36,6 +36,13 @@
 #ifndef _SYNAPTICS_TCM2_DRIVER_H_
 #define _SYNAPTICS_TCM2_DRIVER_H_
 
+#ifndef TOUCHCOMM_VERSION_1
+#define TOUCHCOMM_VERSION_1 1
+#endif
+#ifndef TOUCHCOMM_TDDI
+#define TOUCHCOMM_TDDI 1
+#endif
+
 #include "syna_tcm2_platform.h"
 #include "synaptics_touchcom_core_dev.h"
 #include "synaptics_touchcom_func_base.h"
@@ -162,7 +169,7 @@
 #define ENABLE_EXTERNAL_FRAME_PROCESS
 
 /* Allow driver installation even if errors occur */
-#define FORCE_CONNECTION
+/* #define FORCE_CONNECTION */
 
 /* Perform additional tasks in background workqueue */
 /* #define ENABLE_HELPER */

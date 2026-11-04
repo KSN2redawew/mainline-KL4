@@ -702,8 +702,12 @@ static bool syna_dev_check_input_params(struct syna_tcm *tcm)
 {
 	struct tcm_dev *tcm_dev = tcm->tcm_dev;
 
-	if (tcm_dev->max_x == 0 && tcm_dev->max_y == 0)
-		return false;
+	if (tcm_dev->max_x == 0 && tcm_dev->max_y == 0) {
+		tcm_dev->max_x = 720;
+		tcm_dev->max_y = 1600;
+	}
+	if (tcm_dev->max_objects == 0)
+		tcm_dev->max_objects = 10;
 
 	if (tcm->input_dev_params.max_x != tcm_dev->max_x)
 		return true;
@@ -1953,15 +1957,10 @@ int syna_dev_probe(struct platform_device *pdev)
 
 	/* connect to target device */
 	retval = syna_dev_connect(tcm);
-	if (retval < 0) {
-#ifdef FORCE_CONNECTION
-		LOGW("Failed on device detection\n");
-		LOGN("Install driver anyway due to the force connection\n");
-#else
-		LOGE("Fail to connect to the device\n");
-		syna_pal_mutex_free(&tcm->tp_event_mutex);
+	if (retval < 0 || !tcm->input_dev) {
+		LOGE("Fail to connect to device or create input device\n");
+		retval = -ENODEV;
 		goto err_connect;
-#endif
 	}
 
 	/* create the device file and register to char device classes */
@@ -2026,9 +2025,7 @@ err_create_dir:
 #endif
 err_create_cdev:
 	syna_dev_disconnect(tcm);
-#ifndef FORCE_CONNECTION
 err_connect:
-#endif
 	syna_tcm_buf_release(&tcm->event_data);
 	syna_pal_mutex_free(&tcm->tp_event_mutex);
 err_setup_timings:

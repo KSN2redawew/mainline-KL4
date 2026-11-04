@@ -1483,8 +1483,9 @@ static int syna_spi_probe(struct spi_device *spi)
 	}
 
 	retval = syna_dev_probe(p_hw_spi_if->platform_device);
+	pr_info("[syna_spi] syna_dev_probe returned %d\n", retval);
 	if (retval < 0) {
-		LOGE("TouchComm device probe failed (%d), releasing SPI\n", retval);
+		pr_info("[syna_spi] TouchComm not detected (%d), unbinding to let next driver probe\n", retval);
 		syna_spi_release_attn_resources();
 		syna_spi_release_reset_resources();
 		syna_spi_release_bus_resources();
@@ -1492,6 +1493,7 @@ static int syna_spi_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
+	pr_info("[syna_spi] TouchComm device successfully bound!\n");
 	return 0;
 }
 

@@ -616,6 +616,8 @@ static int cts_driver_probe(struct spi_device *client)
 {
     struct chipone_ts_data *cts_data = NULL;
     int ret = 0;
+
+    pr_info("[CTS_TS] chipone_tddi probe started on %s\n", dev_name(&client->dev));
 #ifdef CHIPONE_SENSOR_EN
 	static bool initialized_sensor;
 #endif
