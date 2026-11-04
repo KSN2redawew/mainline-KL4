@@ -313,8 +313,8 @@ static int fts_get_ic_information(struct fts_ts_data *ts_data)
 	}
 
 	if (cnt >= 3) {
-		pr_warn("[FTS_TS] Could not auto-detect chip ID, falling back to FT8756 default\n");
-		ts_data->ic_info.ids = ctype[0];
+		pr_info("[FTS_TS] Could not detect FocalTech chip ID, yielding to other drivers\n");
+		return -ENODEV;
 	}
 
 	pr_info("[FTS_TS] get ic information, chip id = 0x%02x%02x\n",

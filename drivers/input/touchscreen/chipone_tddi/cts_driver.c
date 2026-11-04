@@ -1273,6 +1273,8 @@ static const struct i2c_device_id cts_device_id_table[] = {
 #else
 static const struct spi_device_id cts_device_id_table[] = {
     { CFG_CTS_DEVICE_NAME, 0 },
+    { "chipone-tddi", 0 },
+    { "chipone-tddi-modules", 0 },
     { }
 };
 #endif

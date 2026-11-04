@@ -1541,6 +1541,8 @@ static int syna_spi_remove(struct spi_device *spi)
 /* Example of an spi device driver */
 static const struct spi_device_id syna_spi_id_table[] = {
 	{"tcm-spi", 0},
+	{"omnivision,tcm-spi", 0},
+	{"omnivision_tcm-modules", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(spi, syna_spi_id_table);
