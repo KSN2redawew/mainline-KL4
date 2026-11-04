@@ -1009,10 +1009,20 @@ int syna_dev_do_reflash(struct syna_tcm *tcm, bool force)
 
 	/* get firmware image */
 	retval = request_firmware(&fw_entry,
-			FW_IMAGE_NAME,
+			"hdl_firmware_00.img",
 			tcm->pdev->dev.parent);
 	if (retval < 0) {
-		LOGE("Fail to request %s\n", FW_IMAGE_NAME);
+		retval = request_firmware(&fw_entry,
+				"hdl_firmware_01.img",
+				tcm->pdev->dev.parent);
+	}
+	if (retval < 0) {
+		retval = request_firmware(&fw_entry,
+				FW_IMAGE_NAME,
+				tcm->pdev->dev.parent);
+	}
+	if (retval < 0) {
+		LOGE("Fail to request firmware image (tried hdl_firmware_00.img, hdl_firmware_01.img, %s)\n", FW_IMAGE_NAME);
 		return retval;
 	}
 
@@ -1957,9 +1967,8 @@ int syna_dev_probe(struct platform_device *pdev)
 
 	/* connect to target device */
 	retval = syna_dev_connect(tcm);
-	if (retval < 0 || !tcm->input_dev) {
-		LOGE("Fail to connect to device or create input device\n");
-		retval = -ENODEV;
+	if (retval < 0) {
+		LOGE("Fail to connect to device\n");
 		goto err_connect;
 	}
 

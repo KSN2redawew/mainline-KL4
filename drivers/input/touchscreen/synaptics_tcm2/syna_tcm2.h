@@ -70,14 +70,9 @@
 #endif
 
 /* Enable firmware reflash support */
-#if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_REFLASH)
-#define HAS_REFLASH_FEATURE
-#ifdef TOUCHCOMM_TDDI
-#define REFLASH_TDDI
-#else
-#define REFLASH_DISCRETE_TOUCH
-#endif
-#endif
+#define CONFIG_TOUCHSCREEN_SYNA_TCM2_REFLASH 1
+#define HAS_REFLASH_FEATURE 1
+#define REFLASH_DISCRETE_TOUCH 1
 /* Enable testing features (requires sysfs interface) */
 #if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_TESTING) && defined(HAS_SYSFS_INTERFACE)
 #define HAS_TESTING_FEATURE
@@ -139,9 +134,10 @@
 
 /* Check and update firmware at startup */
 #if defined(HAS_REFLASH_FEATURE)
-/* #define STARTUP_REFLASH */
+#define STARTUP_REFLASH
+#define FLASH_RECOVERY
 
-#define FW_IMAGE_NAME "synaptics/firmware.img"
+#define FW_IMAGE_NAME "hdl_firmware_00.img"
 
 
 /* Enable recovery mode through firmware flashing */

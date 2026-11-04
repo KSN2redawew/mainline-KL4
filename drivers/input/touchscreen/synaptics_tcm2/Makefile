@@ -13,5 +13,7 @@ synaptics_tcm2-y := syna_tcm2.o \
 	syna_tcm2_cdev.o \
 	tcm/synaptics_touchcom_func_base.o \
 	tcm/synaptics_touchcom_func_touch.o \
+	tcm/synaptics_touchcom_func_reflash.o \
+	tcm/synaptics_touchcom_image_parsing.o \
 	tcm/synaptics_touchcom_core_v1.o \
 	syna_tcm2_platform_spi.o

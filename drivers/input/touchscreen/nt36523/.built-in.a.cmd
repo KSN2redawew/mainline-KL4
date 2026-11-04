@@ -1,1 +1,0 @@
-savedcmd_drivers/input/touchscreen/nt36523/built-in.a := rm -f drivers/input/touchscreen/nt36523/built-in.a;  printf "drivers/input/touchscreen/nt36523/%s " nt36xxx.o nt36xxx_fw_update.o | xargs aarch64-linux-gnu-ar cDPrST drivers/input/touchscreen/nt36523/built-in.a
