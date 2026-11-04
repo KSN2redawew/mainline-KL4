@@ -326,6 +326,13 @@ struct syna_tcm {
 int syna_cdev_create(struct syna_tcm *ptcm);
 void syna_cdev_remove(struct syna_tcm *ptcm);
 
+int syna_dev_probe(struct platform_device *pdev);
+#if (KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE)
+void syna_dev_remove(struct platform_device *pdev);
+#else
+int syna_dev_remove(struct platform_device *pdev);
+#endif
+
 #if defined(REFLASH_DISCRETE_TOUCH) || defined(REFLASH_TDDI)
 /* Helper to perform firmware update */
 int syna_dev_do_reflash(struct syna_tcm *tcm, bool force);

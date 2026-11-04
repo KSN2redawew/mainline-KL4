@@ -1877,7 +1877,7 @@ static void syna_dev_unregister_panel(struct drm_bridge *bridge)
  * return
  *    0 or positive value in case of success, a negative value otherwise.
  */
-static int syna_dev_probe(struct platform_device *pdev)
+int syna_dev_probe(struct platform_device *pdev)
 {
 	int retval;
 	struct syna_tcm *tcm = NULL;
@@ -2050,9 +2050,9 @@ err_allocate_tcm:
  *    0 or positive value in case of success, a negative value otherwise.
  */
 #if (KERNEL_VERSION(6, 12, 0) <= LINUX_VERSION_CODE)
-static void syna_dev_remove(struct platform_device *pdev)
+void syna_dev_remove(struct platform_device *pdev)
 #else
-static int syna_dev_remove(struct platform_device *pdev)
+int syna_dev_remove(struct platform_device *pdev)
 #endif
 {
 	struct syna_tcm *tcm = platform_get_drvdata(pdev);
@@ -2137,7 +2137,7 @@ static const struct dev_pm_ops syna_dev_pm_ops = {
 };
 #endif
 
-static struct platform_driver syna_dev_driver = {
+static struct platform_driver syna_dev_driver __maybe_unused = {
 	.driver = {
 		.name = PLATFORM_DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -2158,19 +2158,11 @@ static struct platform_driver syna_dev_driver = {
 
 static int __init syna_dev_module_init(void)
 {
-	int retval;
-
-	retval = syna_hw_interface_bind();
-	if (retval < 0)
-		return retval;
-
-	return platform_driver_register(&syna_dev_driver);
+	return syna_hw_interface_bind();
 }
 
 static void __exit syna_dev_module_exit(void)
 {
-	platform_driver_unregister(&syna_dev_driver);
-
 	syna_hw_interface_unbind();
 
 	LOGI("Driver %s uninstalled\n", PLATFORM_DRIVER_NAME);
