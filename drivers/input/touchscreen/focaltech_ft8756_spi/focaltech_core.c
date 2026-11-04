@@ -785,7 +785,7 @@ static int fts_input_init(struct fts_ts_data *ts_data)
 	}
 
 	/* Init and register Input device */
-	input_dev->name = FTS_DRIVER_NAME;
+	input_dev->name = "mtk-tpd";
 	input_dev->id.bustype = BUS_SPI;
 
 	input_dev->dev.parent = ts_data->dev;
@@ -1833,12 +1833,15 @@ static void fts_ts_remove(struct spi_device *spi)
 static const struct spi_device_id fts_ts_id[] = {
 	{FTS_DRIVER_NAME, 0},
 	{"fts", 0},
+	{"focaltech,fts", 0},
+	{"focaltech,fts-modules", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(spi, fts_ts_id);
 
 static const struct of_device_id fts_dt_match[] = {
 	{.compatible = "focaltech,fts",},
+	{.compatible = "focaltech,fts-modules",},
 	{},
 };
 

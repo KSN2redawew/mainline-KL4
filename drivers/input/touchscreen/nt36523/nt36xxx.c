@@ -1939,6 +1939,8 @@ static struct drm_panel_follower_funcs nt36xxx_panel_follower_funcs = {
 static const struct spi_device_id nvt_ts_id[] = {
 	{ "NVT-ts-spi", 0 },
 	{ "NVT-ts-spi-nt36532", 0 },
+	{ "novatek,NVT-ts-spi", 0 },
+	{ "novatek,NVT-ts-spi-modules", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, nvt_ts_id);
@@ -1960,6 +1962,7 @@ static const struct nvt_ts_desc nt36532_desc = {
 
 static struct of_device_id nvt_match_table[] = {
 	{ .compatible = "novatek,NVT-ts-spi", .data = &nt36523_desc },
+	{ .compatible = "novatek,NVT-ts-spi-modules", .data = &nt36523_desc },
 	{ .compatible = "novatek,NVT-ts-spi-nt36532", .data = &nt36532_desc },
 	{ },
 };
